@@ -137,8 +137,27 @@ const btnVoz = document.getElementById('btn-voz');
 const grabandoIndicador = document.getElementById('grabando-indicador');
 const transcripcionVivo = document.getElementById('transcripcion-vivo');
 const checkUrgente = null; // toggle manejado por window.urgenteActivo() en index.html
-function urgenteChecked() { return window.urgenteActivo ? window.urgenteActivo() : false; }
-function resetUrgente() { if (window.resetUrgente) window.resetUrgente(); }
+function urgenteChecked() {
+  try {
+    if (typeof window.urgenteActivo === 'function') {
+      return window.urgenteActivo();
+    }
+    return false;
+  } catch(e) {
+    alert('Error interno (urgenteChecked): ' + e.message);
+    return false;
+  }
+}
+function resetUrgente() {
+  try {
+    if (typeof window.resetUrgente === 'function') {
+      window.resetUrgente();
+    }
+  } catch(e) {
+    // No alert aquí — no debe interrumpir al usuario
+    log('resetUrgente falló: ' + e.message);
+  }
+}
 const inputTexto = document.getElementById('input-texto');
 const btnTexto = document.getElementById('btn-texto');
 const contenedorNotas = document.getElementById('contenedor-notas');
