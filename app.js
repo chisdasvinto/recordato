@@ -558,22 +558,9 @@ btnPapelera.addEventListener('click', async () => {
 });
 
 // ─── Service Worker ──────────────────────────────────────────
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js')
-    .then(reg => {
-      log('SW registrado: ' + reg.scope);
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            log('🔄 Nueva versión, recargando...');
-            location.reload();
-          }
-        });
-      });
-    })
-    .catch(err => log('SW falló: ' + err.message));
-}
+// DESACTIVADO temporalmente para diagnóstico (causaba bucle de recarga)
+// El script inline en index.html ya lo des-registra
+log('SW: no registrado (modo diagnóstico)');
 
 // ─── Instalar PWA ────────────────────────────────────────────
 let deferredPrompt = null;
