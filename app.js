@@ -148,6 +148,46 @@ const bannerTexto = document.getElementById('banner-texto');
 const btnPapelera = document.getElementById('btn-papelera');
 const tituloLista = document.getElementById('titulo-lista');
 
+// ─── Banner de error global ───────────────────────────────────
+const bannerError = document.getElementById('banner-error');
+const bannerErrorTexto = document.getElementById('banner-error-texto');
+function mostrarError(msg) {
+  console.error('❌', msg);
+  if (bannerError) {
+    bannerErrorTexto.textContent = '❌ ' + msg;
+    bannerError.style.display = 'block';
+  }
+  // También al log
+  log('❌ ' + msg);
+}
+window.onerror = function(msg, url, line) {
+  mostrarError('Error JS: ' + msg + ' (línea ' + line + ')');
+  return false;
+};
+
+// ─── Event listeners (REGISTRAR PRIMERO, antes de cualquier init) ──
+btnVoz.addEventListener('click', function(e) {
+  e.preventDefault();
+  log('🔘 Botón voz clickeado. grabando=' + grabando);
+  if (grabando) detenerGrabacion();
+  else iniciarGrabacion();
+});
+
+inputTexto.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    guardarNotaTexto();
+  }
+});
+
+btnTexto.addEventListener('click', guardarNotaTexto);
+
+btnPapelera.addEventListener('click', async function() {
+  viendoCompletadas = !viendoCompletadas;
+  btnPapelera.textContent = viendoCompletadas ? '📋 Ver activos' : '🗑️ Ver completadas';
+  await renderizarNotas();
+});
+
 // ─── Estado ───────────────────────────────────────────────────
 let grabando = false;
 let mediaRecorder = null;
@@ -593,28 +633,6 @@ function escapeHtml(texto) {
   div.textContent = texto;
   return div.innerHTML;
 }
-
-// ─── Eventos ─────────────────────────────────────────────────
-btnVoz.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (grabando) detenerGrabacion();
-  else iniciarGrabacion();
-});
-
-inputTexto.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    guardarNotaTexto();
-  }
-});
-
-btnTexto.addEventListener('click', guardarNotaTexto);
-
-btnPapelera.addEventListener('click', async () => {
-  viendoCompletadas = !viendoCompletadas;
-  btnPapelera.textContent = viendoCompletadas ? '📋 Ver activos' : '🗑️ Ver completadas';
-  await renderizarNotas();
-});
 
 // ─── Service Worker ──────────────────────────────────────────
 // DESACTIVADO temporalmente para diagnóstico (causaba bucle de recarga)
