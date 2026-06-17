@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="description" content="Recordato — Para que no se te olvide nada. Anota con voz o texto.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Recordato</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ===== BANNER DE URGENTES ===== -->
+  <div id="banner-urgente" class="banner-urgente oculto">
+    <span id="banner-texto">⚠️ Tienes recordatorios urgentes pendientes</span>
+  </div>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header">
+    <h1 class="logo">📌 Recordato</h1>
+    <span class="subtitulo">Para que no se te olvide nada</span>
+  </header>
+
+  <!-- ===== ZONA DE CAPTURA ===== -->
+  <main class="captura">
+    <!-- Botón de voz gigante -->
+    <button id="btn-voz" class="btn-voz" aria-label="Toca y habla">
+      <span class="btn-voz-icono">🎤</span>
+      <span class="btn-voz-texto">TOCA Y HABLA</span>
+      <span class="btn-voz-hint">(mantén pulsado o toca)</span>
+    </button>
+
+    <!-- Indicador de grabación -->
+    <div id="grabando-indicador" class="grabando-indicador oculto">
+      <span class="pulso"></span>
+      <span>Grabando...</span>
+      <span id="transcripcion-vivo" class="transcripcion-vivo"></span>
+    </div>
+
+    <!-- Toggle urgente -->
+    <label class="toggle-urgente">
+      <input type="checkbox" id="check-urgente">
+      <span class="toggle-slider"></span>
+      <span class="toggle-label">⚠️ ¿Urgente?</span>
+    </label>
+
+    <!-- Campo de texto alternativo -->
+    <div class="modo-texto">
+      <textarea id="input-texto" class="input-texto" placeholder="...o escribe aquí y pulsa Enter" rows="2" maxlength="500"></textarea>
+      <button id="btn-texto" class="btn-texto" aria-label="Guardar texto">✏️ Guardar</button>
+    </div>
+  </main>
+
+  <!-- ===== LISTA DE NOTAS ===== -->
+  <section class="lista-notas">
+    <h2 id="titulo-lista" class="titulo-lista">Tus recordatorios</h2>
+    <div id="contenedor-notas" class="contenedor-notas">
+      <!-- Las notas se renderizan aquí dinámicamente -->
+    </div>
+    <div id="vacio-state" class="vacio-state">
+      <span class="vacio-icono">📋</span>
+      <p>No hay nada apuntado todavía.<br>¡Toca el micrófono y habla!</p>
+    </div>
+  </section>
+
+  <!-- ===== PIE ===== -->
+  <footer class="footer">
+    <button id="btn-papelera" class="btn-papelera">🗑️ Ver completadas</button>
+    <span class="version">v1.0</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
