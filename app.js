@@ -1,85 +1,129 @@
 /* ============================================================
-   RECORDATO — Lógica de la aplicación
+   RECORDATO — Lógica de la aplicación v2
    IndexedDB + MediaRecorder + SpeechRecognition + Notifications
+   Con diagnóstico para Safari/WebKit
    ============================================================ */
 
 // ─── Constantes ───────────────────────────────────────────────
 const DB_NAME = 'recordato-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;  // Bump para forzar recreación en Safari
 const STORE_NAME = 'notas';
-const URGENTE_INTERVALO_MS = 30 * 60 * 1000; // 30 minutos
+const URGENTE_INTERVALO_MS = 30 * 60 * 1000;
+
+// ─── Log de diagnóstico (visible en el DOM) ───────────────────
+function log(msg) {
+  console.log('[Recordato]', msg);
+  const el = document.getElementById('debug-log');
+  if (el) {
+    el.textContent += msg + '\n';
+    el.scrollTop = el.scrollHeight;
+  }
+}
 
 // ─── IndexedDB ────────────────────────────────────────────────
 let db = null;
 
 function abrirDB() {
   return new Promise((resolve, reject) => {
+    log('Abriendo DB v' + DB_VERSION + '...');
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-        store.createIndex('creada', 'creada', { unique: false });
-        store.createIndex('urgente', 'urgente', { unique: false });
-        store.createIndex('completada', 'completada', { unique: false });
+      log('onupgradeneeded: version=' + e.oldVersion + '→' + e.newVersion);
+      // Si existe store viejo, borrarlo (limpiar datos corruptos)
+      if (db.objectStoreNames.contains(STORE_NAME)) {
+        log('Eliminando store viejo...');
+        db.deleteObjectStore(STORE_NAME);
       }
+      log('Creando store nuevo...');
+      const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      store.createIndex('creada', 'creada', { unique: false });
+      store.createIndex('urgente', 'urgente', { unique: false });
+      store.createIndex('completada', 'completada', { unique: false });
+      log('Store creado OK');
     };
-    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
-    req.onerror = (e) => reject(e.target.error);
+    req.onsuccess = (e) => {
+      db = e.target.result;
+      log('DB abierta OK');
+      resolve(db);
+    };
+    req.onerror = (e) => {
+      log('ERROR abriendo DB: ' + e.target.error.message);
+      reject(e.target.error);
+    };
+    req.onblocked = () => {
+      log('DB bloqueada — cerrando otras pestañas...');
+    };
   });
 }
 
 function guardarNota(nota) {
   return new Promise((resolve, reject) => {
+    log('Guardando nota: ' + nota.id + ' texto=' + (nota.texto || '').slice(0, 30));
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    store.put(nota);
-    tx.oncomplete = () => resolve(nota);
-    tx.onerror = (e) => reject(e.target.error);
+    const req = store.put(nota);
+    req.onsuccess = () => log('  put OK');
+    req.onerror = (e) => log('  put ERROR: ' + e.target.error.message);
+    tx.oncomplete = () => { log('  transacción completa'); resolve(nota); };
+    tx.onerror = (e) => { log('  transacción ERROR: ' + e.target.error.message); reject(e.target.error); };
   });
 }
 
-function obtenerNotas(completadas = false) {
+function obtenerNotas(completadas) {
+  completadas = completadas ? 1 : 0;
   return new Promise((resolve, reject) => {
+    log('Obteniendo notas (completadas=' + completadas + ')...');
     const tx = db.transaction(STORE_NAME, 'readonly');
     const store = tx.objectStore(STORE_NAME);
-    const req = store.index('completada').getAll(completadas ? 1 : 0);
+
+    // Usar getAll() sin índice primero (más seguro en Safari)
+    const req = store.getAll();
     req.onsuccess = () => {
-      // Ordenar: urgentes primero, luego por fecha descendente
-      const notas = req.result;
+      const todas = req.result || [];
+      log('  getAll: ' + todas.length + ' notas totales');
+      // Filtrar manualmente
+      const notas = todas.filter(n => (n.completada || 0) === completadas);
+      log('  filtradas: ' + notas.length + ' notas');
       notas.sort((a, b) => {
         if (a.urgente && !b.urgente) return -1;
         if (!a.urgente && b.urgente) return 1;
-        return b.creada - a.creada;
+        return (b.creada || 0) - (a.creada || 0);
       });
       resolve(notas);
     };
-    req.onerror = (e) => reject(e.target.error);
+    req.onerror = (e) => {
+      log('  getAll ERROR: ' + e.target.error.message);
+      reject(e.target.error);
+    };
   });
 }
 
 function actualizarNota(id, cambios) {
   return new Promise((resolve, reject) => {
+    log('Actualizando nota: ' + id);
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const req = store.get(id);
     req.onsuccess = () => {
       const nota = req.result;
-      if (!nota) return reject(new Error('Nota no encontrada'));
+      if (!nota) { log('  nota no encontrada'); return reject(new Error('Nota no encontrada')); }
       Object.assign(nota, cambios);
       store.put(nota);
-      tx.oncomplete = () => resolve(nota);
+      tx.oncomplete = () => { log('  actualización OK'); resolve(nota); };
     };
-    req.onerror = (e) => reject(e.target.error);
+    req.onerror = (e) => { log('  get ERROR: ' + e.target.error.message); reject(e.target.error); };
+    tx.onerror = (e) => { log('  tx ERROR: ' + e.target.error.message); reject(e.target.error); };
   });
 }
 
 function eliminarNota(id) {
   return new Promise((resolve, reject) => {
+    log('Eliminando nota: ' + id);
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e.target.error);
+    tx.oncomplete = () => { log('  eliminación OK'); resolve(); };
+    tx.onerror = (e) => { log('  eliminación ERROR: ' + e.target.error.message); reject(e.target.error); };
   });
 }
 
@@ -117,7 +161,20 @@ async function iniciarGrabacion() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+    // Safari no soporta 'audio/webm;codecs=opus' — usar formato compatible
+    let mimeType = 'audio/webm;codecs=opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = '';  // default del navegador
+        }
+      }
+    }
+    log('MediaRecorder mimeType: ' + (mimeType || '(default)'));
+
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
 
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) audioChunks.push(e.data);
@@ -125,11 +182,12 @@ async function iniciarGrabacion() {
 
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+      const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      log('Audio grabado: ' + (audioBlob.size / 1024).toFixed(1) + ' KB, tipo=' + audioBlob.type);
       await guardarNotaConAudio(audioBlob);
     };
 
-    mediaRecorder.start(100); // chunks cada 100ms
+    mediaRecorder.start(100);
     grabando = true;
 
     // UI
@@ -139,11 +197,10 @@ async function iniciarGrabacion() {
     grabandoIndicador.classList.remove('oculto');
     transcripcionVivo.textContent = '';
 
-    // Iniciar transcripción en paralelo
     iniciarTranscripcion();
 
   } catch (err) {
-    console.error('Error al acceder al micrófono:', err);
+    log('ERROR micrófono: ' + err.message);
     alert('No se pudo acceder al micrófono. Verifica los permisos.');
   }
 }
@@ -155,7 +212,6 @@ function detenerGrabacion() {
   grabando = false;
   detenerTranscripcion();
 
-  // UI
   btnVoz.classList.remove('grabando');
   btnVoz.querySelector('.btn-voz-texto').textContent = 'TOCA Y HABLA';
   btnVoz.querySelector('.btn-voz-icono').textContent = '🎤';
@@ -166,7 +222,7 @@ function detenerGrabacion() {
 function iniciarTranscripcion() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    transcripcionVivo.textContent = '(transcripción no disponible)';
+    transcripcionVivo.textContent = '(transcripción no disponible en este navegador)';
     return;
   }
 
@@ -185,11 +241,13 @@ function iniciarTranscripcion() {
   };
 
   recognition.onerror = (e) => {
-    console.warn('Error de transcripción:', e.error);
+    log('Transcripción error: ' + e.error);
     if (e.error === 'no-speech') {
       transcripcionVivo.textContent = '(no se detecta voz...)';
     } else if (e.error === 'not-allowed') {
       transcripcionVivo.textContent = '(permiso de micrófono denegado)';
+    } else if (e.error === 'network') {
+      transcripcionVivo.textContent = '(sin conexión — el audio se guarda igual)';
     }
   };
 
@@ -208,17 +266,17 @@ async function guardarNotaConAudio(audioBlob) {
   const textoTranscrito = transcripcionVivo.textContent || '';
   const textoValido = (textoTranscrito && textoTranscrito !== '(escuchando...)'
     && textoTranscrito !== '(no se detecta voz...)'
-    && textoTranscrito !== '(transcripción no disponible)')
+    && textoTranscrito !== '(transcripción no disponible en este navegador)'
+    && textoTranscrito !== '(sin conexión — el audio se guarda igual)')
     ? textoTranscrito : '';
 
   // Convertir Blob a ArrayBuffer para compatibilidad con Safari/WebKit
-  // (Safari tiene bugs al guardar Blobs directamente en IndexedDB)
   const audioData = audioBlob ? await blobToArrayBuffer(audioBlob) : null;
 
   const nota = {
     id: generarId(),
     texto: textoValido || '(nota de voz — toca 🎧 para escuchar)',
-    audioData: audioData,  // ArrayBuffer en vez de Blob
+    audioData: audioData,
     audioType: audioBlob ? audioBlob.type : null,
     origen: 'voz',
     urgente: checkUrgente.checked,
@@ -228,12 +286,15 @@ async function guardarNotaConAudio(audioBlob) {
     papelera: 0
   };
 
-  await guardarNota(nota);
-  checkUrgente.checked = false;
-  await renderizarNotas();
-
-  if (nota.urgente) {
-    dispararNotificacionUrgente(nota);
+  try {
+    await guardarNota(nota);
+    log('✅ Nota guardada exitosamente');
+    checkUrgente.checked = false;
+    await renderizarNotas();
+    if (nota.urgente) dispararNotificacionUrgente(nota);
+  } catch (err) {
+    log('❌ ERROR al guardar nota: ' + err.message);
+    alert('Error al guardar la nota. Intenta de nuevo.');
   }
 }
 
@@ -241,7 +302,7 @@ function blobToArrayBuffer(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('Error leyendo Blob'));
     reader.readAsArrayBuffer(blob);
   });
 }
@@ -255,6 +316,7 @@ async function guardarNotaTexto() {
     id: generarId(),
     texto: texto,
     audioData: null,
+    audioType: null,
     origen: 'texto',
     urgente: checkUrgente.checked,
     creada: Date.now(),
@@ -263,13 +325,16 @@ async function guardarNotaTexto() {
     papelera: 0
   };
 
-  await guardarNota(nota);
-  inputTexto.value = '';
-  checkUrgente.checked = false;
-  await renderizarNotas();
-
-  if (nota.urgente) {
-    dispararNotificacionUrgente(nota);
+  try {
+    await guardarNota(nota);
+    log('✅ Nota de texto guardada');
+    inputTexto.value = '';
+    checkUrgente.checked = false;
+    await renderizarNotas();
+    if (nota.urgente) dispararNotificacionUrgente(nota);
+  } catch (err) {
+    log('❌ ERROR al guardar texto: ' + err.message);
+    alert('Error al guardar. Intenta de nuevo.');
   }
 }
 
@@ -283,32 +348,26 @@ async function pedirPermisoNotificaciones() {
 
 function dispararNotificacionUrgente(nota) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
   const opciones = {
     body: nota.texto,
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
     tag: 'recordato-urgente',
-    requireInteraction: true, // persistente, no desaparece sola
+    requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
     silent: false
   };
-
   new Notification('⚠️ RECORDATORIO URGENTE', opciones);
 }
 
 function programarReNotificaciones() {
-  // Limpiar timer anterior
   if (timerUrgentes) clearInterval(timerUrgentes);
-
   timerUrgentes = setInterval(async () => {
     const notas = await obtenerNotas(false);
     const urgentes = notas.filter(n => n.urgente);
     if (urgentes.length > 0) {
-      // Disparar para la más urgente (primera)
       dispararNotificacionUrgente(urgentes[0]);
     } else {
-      // Si no hay urgentes, limpiar timer
       clearInterval(timerUrgentes);
       timerUrgentes = null;
     }
@@ -317,26 +376,31 @@ function programarReNotificaciones() {
 
 // ─── Renderizado ─────────────────────────────────────────────
 async function renderizarNotas() {
-  const notas = await obtenerNotas(viendoCompletadas);
-  contenedorNotas.innerHTML = '';
+  try {
+    const notas = await obtenerNotas(viendoCompletadas);
+    contenedorNotas.innerHTML = '';
 
-  if (notas.length === 0) {
+    if (notas.length === 0) {
+      vacioState.classList.remove('oculto');
+      tituloLista.textContent = viendoCompletadas ? 'Completadas' : 'Tus recordatorios';
+    } else {
+      vacioState.classList.add('oculto');
+      tituloLista.textContent = viendoCompletadas
+        ? `Completadas (${notas.length})`
+        : `Tus recordatorios (${notas.length})`;
+
+      notas.forEach(nota => {
+        const card = crearCard(nota);
+        contenedorNotas.appendChild(card);
+      });
+    }
+
+    actualizarBannerUrgente(notas);
+  } catch (err) {
+    log('❌ ERROR renderizando: ' + err.message);
     vacioState.classList.remove('oculto');
-    tituloLista.textContent = viendoCompletadas ? 'Completadas' : 'Tus recordatorios';
-  } else {
-    vacioState.classList.add('oculto');
-    tituloLista.textContent = viendoCompletadas
-      ? `Completadas (${notas.length})`
-      : `Tus recordatorios (${notas.length})`;
-
-    notas.forEach(nota => {
-      const card = crearCard(nota);
-      contenedorNotas.appendChild(card);
-    });
+    tituloLista.textContent = 'Error cargando notas';
   }
-
-  // Actualizar banner de urgentes
-  actualizarBannerUrgente(notas);
 }
 
 function crearCard(nota) {
@@ -365,7 +429,6 @@ function crearCard(nota) {
     </div>
   `;
 
-  // Eventos delegados
   card.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -398,15 +461,11 @@ async function marcarHecho(id, card) {
 }
 
 async function borrarNota(id, card) {
+  card.classList.add('eliminando');
+  await new Promise(r => setTimeout(r, 300));
   if (viendoCompletadas) {
-    // Eliminación definitiva
-    card.classList.add('eliminando');
-    await new Promise(r => setTimeout(r, 300));
     await eliminarNota(id);
   } else {
-    // Mover a papelera (soft delete)
-    card.classList.add('eliminando');
-    await new Promise(r => setTimeout(r, 300));
     await actualizarNota(id, { completada: 1, papelera: 1 });
   }
   await renderizarNotas();
@@ -414,11 +473,10 @@ async function borrarNota(id, card) {
 
 function reproducirAudio(audioData, audioType) {
   if (!audioData) return;
-  // Reconstruir Blob desde ArrayBuffer (compatible con Safari)
-  const blob = new Blob([audioData], { type: audioType || 'audio/webm;codecs=opus' });
+  const blob = new Blob([audioData], { type: audioType || 'audio/webm' });
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
-  audio.play().catch(e => console.warn('Error al reproducir audio:', e));
+  audio.play().catch(e => log('Error reproduciendo audio: ' + e.message));
   audio.onended = () => URL.revokeObjectURL(url);
 }
 
@@ -444,17 +502,12 @@ function escapeHtml(texto) {
 }
 
 // ─── Eventos ─────────────────────────────────────────────────
-// Botón de voz: toggle simple — toca para grabar, toca para parar
 btnVoz.addEventListener('click', (e) => {
   e.preventDefault();
-  if (grabando) {
-    detenerGrabacion();
-  } else {
-    iniciarGrabacion();
-  }
+  if (grabando) detenerGrabacion();
+  else iniciarGrabacion();
 });
 
-// Texto: Enter para guardar
 inputTexto.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -464,7 +517,6 @@ inputTexto.addEventListener('keydown', (e) => {
 
 btnTexto.addEventListener('click', guardarNotaTexto);
 
-// Toggle papelera
 btnPapelera.addEventListener('click', async () => {
   viendoCompletadas = !viendoCompletadas;
   btnPapelera.textContent = viendoCompletadas ? '📋 Ver activos' : '🗑️ Ver completadas';
@@ -475,21 +527,18 @@ btnPapelera.addEventListener('click', async () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
     .then(reg => {
-      console.log('SW registrado:', reg.scope);
-
-      // Detectar nueva versión y forzar actualización
+      log('SW registrado: ' + reg.scope);
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Nueva versión disponible → recargar para aplicarla
-            console.log('🔄 Nueva versión detectada, recargando...');
+            log('🔄 Nueva versión, recargando...');
             location.reload();
           }
         });
       });
     })
-    .catch(err => console.warn('SW falló:', err));
+    .catch(err => log('SW falló: ' + err.message));
 }
 
 // ─── Instalar PWA ────────────────────────────────────────────
@@ -499,7 +548,6 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Solo en Android/Chrome — iOS no dispara este evento
   e.preventDefault();
   deferredPrompt = e;
   btnInstalar.textContent = '📲 Instalar app';
@@ -508,25 +556,21 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 btnInstalar.addEventListener('click', async () => {
   if (deferredPrompt) {
-    // Android/Chrome: diálogo nativo
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    console.log('Instalación:', outcome);
+    log('Instalación: ' + outcome);
     deferredPrompt = null;
     btnInstalar.classList.add('oculto');
   } else if (isIOS) {
-    // iOS: mostrar instrucciones
     alert('📲 Para instalar Recordato en tu iPhone:\n\n1. Toca el botón Compartir (📤)\n2. Desliza y toca "Añadir a pantalla de inicio"\n3. Toca "Añadir"\n\n¡Usa Safari, no Chrome!');
   }
 });
 
-// Si ya está instalada, ocultar botón
 window.addEventListener('appinstalled', () => {
   btnInstalar.classList.add('oculto');
   deferredPrompt = null;
 });
 
-// En iOS, mostrar el botón siempre (con instrucciones)
 if (isIOS && !deferredPrompt) {
   btnInstalar.textContent = '📲 Instalar (iOS)';
   btnInstalar.classList.remove('oculto');
@@ -534,10 +578,18 @@ if (isIOS && !deferredPrompt) {
 
 // ─── Inicio ──────────────────────────────────────────────────
 async function iniciar() {
-  await abrirDB();
-  await pedirPermisoNotificaciones();
-  await renderizarNotas();
-  programarReNotificaciones();
+  log('🚀 Iniciando Recordato v2...');
+  log('UserAgent: ' + navigator.userAgent.slice(0, 60));
+  try {
+    await abrirDB();
+    await pedirPermisoNotificaciones();
+    await renderizarNotas();
+    programarReNotificaciones();
+    log('✅ Inicio completo');
+  } catch (err) {
+    log('❌ Error fatal: ' + err.message);
+    alert('Error al iniciar Recordato. Recarga la página.');
+  }
 }
 
-iniciar().catch(err => console.error('Error al iniciar Recordato:', err));
+iniciar();
