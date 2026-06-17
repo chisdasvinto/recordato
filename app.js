@@ -378,6 +378,7 @@ function programarReNotificaciones() {
 async function renderizarNotas() {
   try {
     const notas = await obtenerNotas(viendoCompletadas);
+    log('Renderizando: ' + notas.length + ' notas, contenedor visible: ' + (contenedorNotas.offsetHeight > 0));
     contenedorNotas.innerHTML = '';
 
     if (notas.length === 0) {
@@ -392,7 +393,10 @@ async function renderizarNotas() {
       notas.forEach(nota => {
         const card = crearCard(nota);
         contenedorNotas.appendChild(card);
+        log('  Card añadida: ' + nota.id + ' texto=' + nota.texto.slice(0, 20));
       });
+      log('Total cards en DOM: ' + contenedorNotas.children.length);
+      log('Altura contenedor: ' + contenedorNotas.offsetHeight + 'px');
     }
 
     actualizarBannerUrgente(notas);

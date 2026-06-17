@@ -34,8 +34,8 @@ body {
   flex-direction: column;
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100vh; /* más compatible que 100dvh en Safari */
-  min-height: 100dvh; /* fallback para navegadores modernos */
+  height: 100vh;
+  height: 100dvh;
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
 }
 
