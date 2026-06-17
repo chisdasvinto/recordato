@@ -295,6 +295,12 @@ function detenerTranscripcion() {
 
 // ─── Guardar nota (con audio) ────────────────────────────────
 async function guardarNotaConAudio(audioBlob) {
+  log('📝 guardarNotaConAudio: iniciando...');
+  log('  audioBlob size: ' + (audioBlob ? (audioBlob.size/1024).toFixed(1) + ' KB' : 'NULL'));
+  log('  window.urgenteActivo existe: ' + (typeof window.urgenteActivo === 'function'));
+  var esUrgente = urgenteChecked();
+  log('  urgenteChecked(): ' + esUrgente);
+
   const textoTranscrito = transcripcionVivo.textContent || '';
   const textoValido = (textoTranscrito && textoTranscrito !== '(escuchando...)'
     && textoTranscrito !== '(no se detecta voz...)'
@@ -302,8 +308,12 @@ async function guardarNotaConAudio(audioBlob) {
     && textoTranscrito !== '(sin conexión — el audio se guarda igual)')
     ? textoTranscrito : '';
 
+  log('  textoValido: ' + (textoValido || '(vacío)'));
+
   // Convertir Blob a ArrayBuffer para compatibilidad con Safari/WebKit
+  log('  convirtiendo Blob a ArrayBuffer...');
   const audioData = audioBlob ? await blobToArrayBuffer(audioBlob) : null;
+  log('  audioData: ' + (audioData ? (audioData.byteLength/1024).toFixed(1) + ' KB' : 'NULL'));
 
   const nota = {
     id: generarId(),
@@ -311,28 +321,36 @@ async function guardarNotaConAudio(audioBlob) {
     audioData: audioData,
     audioType: audioBlob ? audioBlob.type : null,
     origen: 'voz',
-    urgente: urgenteChecked(),
+    urgente: esUrgente,
     creada: Date.now(),
-    recordatorio: urgenteChecked() ? Date.now() : null,
+    recordatorio: esUrgente ? Date.now() : null,
     completada: 0,
     papelera: 0
   };
 
+  log('  nota.id: ' + nota.id + ' urgente: ' + nota.urgente);
+
   try {
+    log('  guardando en IndexedDB...');
     await guardarNota(nota);
     log('✅ Nota guardada exitosamente');
+    log('  renderizando...');
     await renderizarNotas();
+    log('  renderizado completo');
   } catch (err) {
-    log('❌ ERROR al guardar nota: ' + err.message);
+    log('❌ ERROR al guardar nota: ' + err.name + ' — ' + err.message);
     alert('Error al guardar la nota. Intenta de nuevo.');
     return;
   }
 
   // Fuera del try/catch: reset + notificación (no deben bloquear el guardado)
-  try { resetUrgente(); } catch(e) { log('resetUrgente falló: ' + e.message); }
+  log('  reseteando urgente...');
+  try { resetUrgente(); log('  resetUrgente OK'); } catch(e) { log('resetUrgente falló: ' + e.message); }
   if (nota.urgente) {
-    try { dispararNotificacionUrgente(nota); } catch(e) { log('notificación falló: ' + e.message); }
+    log('  disparando notificación...');
+    try { dispararNotificacionUrgente(nota); log('  notificación OK'); } catch(e) { log('notificación falló: ' + e.message); }
   }
+  log('📝 guardarNotaConAudio: COMPLETADO');
 }
 
 function blobToArrayBuffer(blob) {
