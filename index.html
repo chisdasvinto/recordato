@@ -111,11 +111,11 @@
   <footer style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #2a2a4a">
     <button id="btn-instalar" class="oculto" style="background:#4a90d9;color:#fff;border:none;font-size:0.85rem;font-weight:700;cursor:pointer;padding:8px 16px;border-radius:20px">📲 Instalar app</button>
     <button id="btn-papelera" style="background:none;border:none;color:#a0a0b0;font-size:0.85rem;cursor:pointer;padding:6px 12px;border-radius:8px">🗑️ Ver completadas</button>
-    <span style="font-size:0.7rem;color:#a0a0b0">v3.0</span>
+    <span style="font-size:0.7rem;color:#a0a0b0">v3.1</span>
   </footer>
 
   <script>
-    // ─── TOGGLE URGENTE (primero, antes de todo) ────────────────
+    // ─── TOGGLE URGENTE ────────────────────────────────────────
     var urgenteActivo = false;
     var toggleBtn = document.getElementById('toggle-urgente');
     var toggleIcono = document.getElementById('toggle-icono');
@@ -135,15 +135,9 @@
 
     toggleBtn.addEventListener('click', function(e) {
       e.preventDefault();
-      e.stopPropagation();
       urgenteActivo = !urgenteActivo;
       actualizarToggleUI();
-      // Escribir directamente en el DOM para confirmar
-      var dbg = document.getElementById('debug-log');
-      if (dbg) dbg.textContent += '🔴 TOGGLE CLICK: ' + (urgenteActivo ? 'SÍ' : 'NO') + '\n';
     });
-
-    // También touchstart para Safari
     toggleBtn.addEventListener('touchstart', function(e) {
       e.preventDefault();
       urgenteActivo = !urgenteActivo;
@@ -156,114 +150,11 @@
       actualizarToggleUI();
     };
 
-    // ─── DIAGNÓSTICO INLINE + SW KILLER ────────────────────────
-    var logEl = document.getElementById('debug-log');
-    function dlog(msg) {
-      console.log('[DIAG]', msg);
-      if (logEl) logEl.textContent += msg + '\n';
-    }
-    dlog('=== v3.0 DIAGNÓSTICO ===');
-    dlog('UA: ' + navigator.userAgent.slice(0, 80));
-    dlog('Toggle elements: btn=' + (toggleBtn ? 'OK' : 'NULL') + ' icono=' + (toggleIcono ? 'OK' : 'NULL') + ' texto=' + (toggleTexto ? 'OK' : 'NULL'));
-
-    // MATAR Service Worker agresivamente
-    if ('serviceWorker' in navigator) {
-      dlog('SW API: disponible — des-registrando TODO');
-      navigator.serviceWorker.getRegistrations().then(function(regs) {
-        dlog('SW encontrados: ' + regs.length);
-        regs.forEach(function(r) {
-          r.unregister().then(function() {
-            dlog('  ✅ SW eliminado: ' + r.scope);
-          });
-        });
-        // También limpiar cachés
-        if ('caches' in window) {
-          caches.keys().then(function(keys) {
-            dlog('Caches: ' + keys.length);
-            keys.forEach(function(k) {
-              caches.delete(k).then(function() {
-                dlog('  ✅ Cache eliminado: ' + k);
-              });
-            });
-          });
-        }
-      });
-    }
-
-    // Cargar app.js con cache-buster
-    dlog('Cargando app.js...');
-
-    // Toggle urgente: botón simple (Safari no falla con <button>)
-    var urgenteActivo = false;
-    var toggleBtn = document.getElementById('toggle-urgente');
-    var toggleIcono = document.getElementById('toggle-icono');
-    var toggleTexto = document.getElementById('toggle-texto');
-    toggleBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      urgenteActivo = !urgenteActivo;
-      if (urgenteActivo) {
-        toggleBtn.style.background = '#e74c3c';
-        toggleIcono.textContent = '🔴';
-        toggleTexto.textContent = 'Urgente: SÍ';
-      } else {
-        toggleBtn.style.background = '#2a2a4a';
-        toggleIcono.textContent = '⚠️';
-        toggleTexto.textContent = 'Urgente: NO';
-      }
-      dlog('Toggle urgente: ' + (urgenteActivo ? 'SÍ' : 'NO'));
-    });
-    window.urgenteActivo = function() { return urgenteActivo; };
-    window.resetUrgente = function() {
-      urgenteActivo = false;
-      toggleBtn.style.background = '#2a2a4a';
-      toggleIcono.textContent = '⚠️';
-      toggleTexto.textContent = 'Urgente: NO';
-    };
+    // ─── CARGAR APP ────────────────────────────────────────────
     var s = document.createElement('script');
-    s.src = 'app.js?v=' + Date.now();
-    s.onload = function() {
-      dlog('✅ app.js cargado');
-      // Inspeccionar DOM después de 3 segundos
-      setTimeout(function() {
-        dlog('--- INSPECCIÓN POST-RENDER (3s) ---');
-        var cont = document.getElementById('contenedor-notas');
-        var lista = document.getElementById('lista-notas');
-        dlog('contenedor-notas:');
-        dlog('  hijos: ' + cont.children.length);
-        dlog('  innerHTML length: ' + cont.innerHTML.length);
-        dlog('  offsetHeight: ' + cont.offsetHeight + 'px');
-        dlog('  offsetWidth: ' + cont.offsetWidth + 'px');
-        dlog('  display: ' + getComputedStyle(cont).display);
-        dlog('  visibility: ' + getComputedStyle(cont).visibility);
-        dlog('  opacity: ' + getComputedStyle(cont).opacity);
-        dlog('lista-notas:');
-        dlog('  offsetHeight: ' + lista.offsetHeight + 'px');
-        dlog('  overflow: ' + getComputedStyle(lista).overflowY);
-        if (cont.children.length > 0) {
-          var first = cont.children[0];
-          dlog('Primera card:');
-          dlog('  tagName: ' + first.tagName);
-          dlog('  offsetHeight: ' + first.offsetHeight + 'px');
-          dlog('  offsetWidth: ' + first.offsetWidth + 'px');
-          dlog('  display: ' + getComputedStyle(first).display);
-          dlog('  visibility: ' + getComputedStyle(first).visibility);
-          dlog('  opacity: ' + getComputedStyle(first).opacity);
-          dlog('  background: ' + getComputedStyle(first).backgroundColor);
-          dlog('  textContent: ' + (first.textContent || '').slice(0, 40));
-          // Verificar ancestros
-          var p = first.parentElement;
-          while (p) {
-            var cs = getComputedStyle(p);
-            if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0 || cs.overflow === 'hidden' && p.offsetHeight === 0) {
-              dlog('  ⚠️ ANCESTRO PROBLEMÁTICO: ' + p.tagName + (p.id ? '#'+p.id : '') + ' display=' + cs.display + ' visibility=' + cs.visibility + ' opacity=' + cs.opacity + ' overflow=' + cs.overflow + ' height=' + p.offsetHeight);
-            }
-            p = p.parentElement;
-          }
-        }
-      }, 3000);
-    };
+    s.src = 'app.js';
     s.onerror = function() {
-      dlog('❌ ERROR al cargar app.js');
+      alert('Error al cargar la aplicación. Recarga la página.');
     };
     document.head.appendChild(s);
   </script>

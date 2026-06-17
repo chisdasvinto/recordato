@@ -654,9 +654,14 @@ function escapeHtml(texto) {
 }
 
 // ─── Service Worker ──────────────────────────────────────────
-// DESACTIVADO temporalmente para diagnóstico (causaba bucle de recarga)
-// El script inline en index.html ya lo des-registra
-log('SW: no registrado (modo diagnóstico)');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(reg => {
+      log('SW registrado: ' + reg.scope);
+      // Sin auto-reload — el usuario recarga manualmente si quiere
+    })
+    .catch(err => log('SW falló: ' + err.message));
+}
 
 // ─── Instalar PWA ────────────────────────────────────────────
 let deferredPrompt = null;
