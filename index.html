@@ -85,6 +85,95 @@
     <span class="version">v2.0</span>
   </footer>
 
-  <script src="app.js"></script>
+  <script>
+    // ─── DIAGNÓSTICO INLINE (no depende de app.js) ───────────────
+    var logEl = document.getElementById('debug-log');
+    function dlog(msg) {
+      console.log('[DIAG]', msg);
+      if (logEl) logEl.textContent += msg + '\n';
+    }
+    dlog('=== DIAGNÓSTICO INLINE ===');
+    dlog('UserAgent: ' + navigator.userAgent.slice(0, 80));
+    dlog('Platform: ' + navigator.platform);
+    dlog('Vendor: ' + navigator.vendor);
+
+    // 1. ¿Service Worker bloqueando?
+    if ('serviceWorker' in navigator) {
+      dlog('SW API: disponible');
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        dlog('SW registrados: ' + regs.length);
+        regs.forEach(function(r) {
+          dlog('  SW scope: ' + r.scope + ' state: ' + (r.active ? r.active.state : 'none'));
+          // Des-registrar para limpiar
+          r.unregister().then(function() {
+            dlog('  SW des-registrado: ' + r.scope);
+          });
+        });
+      }).catch(function(e) {
+        dlog('ERROR obteniendo SW: ' + e.message);
+      });
+    } else {
+      dlog('SW API: NO disponible');
+    }
+
+    // 2. ¿IndexedDB funciona?
+    if ('indexedDB' in window) {
+      dlog('IndexedDB: disponible');
+      try {
+        var req = indexedDB.open('recordato-test', 1);
+        req.onsuccess = function() {
+          dlog('IndexedDB test: OK (abrió correctamente)');
+          req.result.close();
+          indexedDB.deleteDatabase('recordato-test');
+        };
+        req.onerror = function(e) {
+          dlog('IndexedDB test ERROR: ' + e.target.error.message);
+        };
+        req.onupgradeneeded = function(e) {
+          var db = e.target.result;
+          db.createObjectStore('test', { keyPath: 'id' });
+          dlog('IndexedDB upgrade: OK');
+        };
+      } catch(e) {
+        dlog('IndexedDB EXCEPCIÓN: ' + e.message);
+      }
+    } else {
+      dlog('IndexedDB: NO disponible');
+    }
+
+    // 3. ¿MediaRecorder?
+    if ('MediaRecorder' in window) {
+      dlog('MediaRecorder: disponible');
+      dlog('  isTypeSupported(webm): ' + MediaRecorder.isTypeSupported('audio/webm'));
+      dlog('  isTypeSupported(mp4): ' + MediaRecorder.isTypeSupported('audio/mp4'));
+    } else {
+      dlog('MediaRecorder: NO disponible');
+    }
+
+    // 4. Intentar cargar app.js manualmente
+    dlog('Intentando cargar app.js...');
+    var script = document.createElement('script');
+    script.src = 'app.js?v=' + Date.now();
+    script.onload = function() {
+      dlog('app.js CARGADO correctamente ✅');
+    };
+    script.onerror = function(e) {
+      dlog('app.js ERROR al cargar ❌');
+      // Intentar fetch directo para ver si el archivo existe
+      fetch('app.js?v=' + Date.now())
+        .then(function(r) {
+          dlog('  fetch app.js: status=' + r.status + ' size=' + r.headers.get('content-length'));
+          return r.text();
+        })
+        .then(function(txt) {
+          dlog('  fetch app.js: ' + txt.length + ' bytes recibidos');
+          dlog('  primeras líneas: ' + txt.slice(0, 100));
+        })
+        .catch(function(e2) {
+          dlog('  fetch app.js ERROR: ' + e2.message);
+        });
+    };
+    document.head.appendChild(script);
+  </script>
 </body>
 </html>
