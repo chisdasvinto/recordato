@@ -452,25 +452,53 @@ async function guardarNotaTexto() {
 }
 
 // ─── Notificaciones ──────────────────────────────────────────
-async function pedirPermisoNotificaciones() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    await Notification.requestPermission();
-  }
-}
+// iOS Safari NO soporta Notification API. Fallback: banner + alert + sonido.
 
 function dispararNotificacionUrgente(nota) {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const opciones = {
-    body: nota.texto,
-    icon: 'icons/icon-192.png',
-    badge: 'icons/icon-192.png',
-    tag: 'recordato-urgente',
-    requireInteraction: true,
-    vibrate: [200, 100, 200, 100, 200],
-    silent: false
-  };
-  new Notification('⚠️ RECORDATORIO URGENTE', opciones);
+  // 1. Intentar Notification nativa (Android/Chrome)
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('⚠️ RECORDATORIO URGENTE', {
+        body: nota.texto,
+        icon: 'icons/icon-192.png',
+        badge: 'icons/icon-192.png',
+        tag: 'recordato-urgente',
+        requireInteraction: true,
+        vibrate: [200, 100, 200, 100, 200],
+        silent: false
+      });
+      return;
+    } catch(e) { /* fallback abajo */ }
+  }
+
+  // 2. Intentar notificación via Service Worker (Android/Chrome)
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    try {
+      navigator.serviceWorker.controller.postMessage({
+        action: 'notificar-urgente',
+        texto: nota.texto
+      });
+      return;
+    } catch(e) { /* fallback abajo */ }
+  }
+
+  // 3. Fallback iOS: banner + alert + sonido
+  mostrarBannerUrgente(true);
+  alert('⚠️ RECORDATORIO URGENTE\n\n' + nota.texto);
+
+  // Intentar sonido/vibración
+  try {
+    if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
+  } catch(e) {}
+}
+
+function mostrarBannerUrgente(activo) {
+  if (activo) {
+    bannerUrgente.classList.remove('oculto');
+    bannerTexto.textContent = '⚠️ Tienes recordatorios urgentes pendientes';
+  } else {
+    bannerUrgente.classList.add('oculto');
+  }
 }
 
 function programarReNotificaciones() {
@@ -483,6 +511,7 @@ function programarReNotificaciones() {
     } else {
       clearInterval(timerUrgentes);
       timerUrgentes = null;
+      mostrarBannerUrgente(false);
     }
   }, URGENTE_INTERVALO_MS);
 }
@@ -699,7 +728,10 @@ async function iniciar() {
   log('UserAgent: ' + navigator.userAgent.slice(0, 60));
   try {
     await abrirDB();
-    await pedirPermisoNotificaciones();
+    // Pedir permiso de notificaciones (solo Android/Chrome — iOS no tiene Notification)
+    if ('Notification' in window && Notification.permission === 'default') {
+      try { await Notification.requestPermission(); } catch(e) {}
+    }
     await renderizarNotas();
     programarReNotificaciones();
     log('✅ Inicio completo');
