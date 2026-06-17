@@ -13,167 +13,187 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="apple-touch-startup-image" href="icons/icon-512.png">
   <title>Recordato</title>
-  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Solo estilos críticos que no pueden ser inline */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      max-width: 480px;
+      margin: 0 auto;
+      height: 100vh;
+      height: 100dvh;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
+    }
+    .oculto { display: none !important; }
+    #debug-panel {
+      margin-top: 8px;
+      border-top: 1px solid #2a2a4a;
+      padding: 8px 0;
+      font-size: 0.7rem;
+      color: #a0a0b0;
+    }
+    #debug-log {
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 0.65rem;
+      background: #0d1117;
+      padding: 8px;
+      border-radius: 8px;
+      margin-top: 4px;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- ===== BANNER DE URGENTES ===== -->
-  <div id="banner-urgente" class="banner-urgente oculto">
+  <div id="banner-urgente" class="oculto" style="background:#e74c3c;color:#fff;text-align:center;padding:12px 16px;font-weight:700;font-size:1rem;border-radius:0 0 16px 16px">
     <span id="banner-texto">⚠️ Tienes recordatorios urgentes pendientes</span>
   </div>
 
-  <!-- ===== HEADER ===== -->
-  <header class="header">
-    <h1 class="logo">📌 Recordato</h1>
-    <span class="subtitulo">Para que no se te olvide nada</span>
+  <header style="text-align:center;padding:20px 0 12px">
+    <h1 style="font-size:1.8rem;font-weight:800;letter-spacing:-0.5px;margin:0">📌 Recordato</h1>
+    <span style="font-size:0.85rem;color:#a0a0b0">Para que no se te olvide nada</span>
   </header>
 
-  <!-- ===== ZONA DE CAPTURA ===== -->
-  <main class="captura">
-    <!-- Botón de voz gigante -->
-    <button id="btn-voz" class="btn-voz" aria-label="Toca y habla">
-      <div class="btn-voz-inner">
-        <span class="btn-voz-icono">🎤</span>
-        <span class="btn-voz-texto">TOCA Y HABLA</span>
-        <span class="btn-voz-hint">(toca para grabar, toca para parar)</span>
+  <main style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0 20px">
+    <button id="btn-voz" style="width:100%;max-width:320px;height:0;padding-bottom:min(100%,320px);position:relative;border-radius:50%;border:4px solid #4a90d9;background:#16213e;color:#e0e0e0;cursor:pointer;box-shadow:0 4px 24px rgba(0,0,0,0.4);-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation;overflow:hidden" aria-label="Toca y habla">
+      <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+        <span id="btn-voz-icono" style="font-size:3.5rem;line-height:1">🎤</span>
+        <span id="btn-voz-texto" style="font-size:1.1rem;font-weight:700;letter-spacing:2px">TOCA Y HABLA</span>
+        <span style="font-size:0.7rem;color:#a0a0b0">(toca para grabar, toca para parar)</span>
       </div>
     </button>
 
-    <!-- Indicador de grabación -->
-    <div id="grabando-indicador" class="grabando-indicador oculto">
-      <span class="pulso"></span>
+    <div id="grabando-indicador" class="oculto" style="display:none;align-items:center;gap:10px;font-weight:600;color:#e74c3c;font-size:0.95rem">
+      <span style="width:12px;height:12px;border-radius:50%;background:#e74c3c;display:inline-block"></span>
       <span>Grabando...</span>
-      <span id="transcripcion-vivo" class="transcripcion-vivo"></span>
+      <span id="transcripcion-vivo" style="color:#a0a0b0;font-style:italic;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     </div>
 
-    <!-- Toggle urgente -->
-    <label class="toggle-urgente">
-      <input type="checkbox" id="check-urgente">
-      <span class="toggle-slider"></span>
-      <span class="toggle-label">⚠️ ¿Urgente?</span>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-size:1rem;font-weight:600">
+      <input type="checkbox" id="check-urgente" style="display:none">
+      <span id="toggle-slider" style="width:52px;height:28px;border-radius:14px;background:#2a2a4a;position:relative;display:inline-block"></span>
+      <span>⚠️ ¿Urgente?</span>
     </label>
 
-    <!-- Campo de texto alternativo -->
-    <div class="modo-texto">
-      <textarea id="input-texto" class="input-texto" placeholder="...o escribe aquí y pulsa Enter" rows="2" maxlength="500"></textarea>
-      <button id="btn-texto" class="btn-texto" aria-label="Guardar texto">✏️ Guardar</button>
+    <div style="width:100%;display:flex;gap:8px">
+      <textarea id="input-texto" placeholder="...o escribe aquí y pulsa Enter" rows="2" maxlength="500" style="flex:1;background:#16213e;border:2px solid #2a2a4a;border-radius:16px;color:#e0e0e0;padding:12px 16px;font-size:1rem;font-family:inherit;resize:none;outline:none"></textarea>
+      <button id="btn-texto" style="background:#4a90d9;color:#fff;border:none;border-radius:16px;padding:12px 20px;font-size:1rem;font-weight:700;cursor:pointer;white-space:nowrap">✏️ Guardar</button>
     </div>
   </main>
 
-  <!-- ===== LISTA DE NOTAS ===== -->
-  <section class="lista-notas">
-    <h2 id="titulo-lista" class="titulo-lista">Tus recordatorios</h2>
-    <div id="contenedor-notas" class="contenedor-notas">
-      <!-- Las notas se renderizan aquí dinámicamente -->
+  <section id="lista-notas" style="flex:1;overflow-y:auto;padding-bottom:16px;display:block">
+    <h2 id="titulo-lista" style="font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;color:#a0a0b0;margin-bottom:10px;padding-left:4px">Tus recordatorios</h2>
+    <div id="contenedor-notas" style="display:flex;flex-direction:column;gap:10px">
     </div>
-    <div id="vacio-state" class="vacio-state">
-      <span class="vacio-icono">📋</span>
-      <p>No hay nada apuntado todavía.<br>¡Toca el micrófono y habla!</p>
+    <div id="vacio-state" style="text-align:center;padding:40px 20px;color:#a0a0b0">
+      <span style="font-size:3rem;display:block;margin-bottom:12px">📋</span>
+      <p style="font-size:0.95rem;line-height:1.5">No hay nada apuntado todavía.<br>¡Toca el micrófono y habla!</p>
     </div>
   </section>
 
-  <!-- ===== DIAGNÓSTICO (debug) ===== -->
-  <details id="debug-panel" class="debug-panel">
+  <details id="debug-panel">
     <summary>🔍 Diagnóstico</summary>
-    <pre id="debug-log" class="debug-log"></pre>
+    <pre id="debug-log"></pre>
   </details>
 
-  <!-- ===== PIE ===== -->
-  <footer class="footer">
-    <button id="btn-instalar" class="btn-instalar oculto">📲 Instalar app</button>
-    <button id="btn-papelera" class="btn-papelera">🗑️ Ver completadas</button>
-    <span class="version">v2.0</span>
+  <footer style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #2a2a4a">
+    <button id="btn-instalar" class="oculto" style="background:#4a90d9;color:#fff;border:none;font-size:0.85rem;font-weight:700;cursor:pointer;padding:8px 16px;border-radius:20px">📲 Instalar app</button>
+    <button id="btn-papelera" style="background:none;border:none;color:#a0a0b0;font-size:0.85rem;cursor:pointer;padding:6px 12px;border-radius:8px">🗑️ Ver completadas</button>
+    <span style="font-size:0.7rem;color:#a0a0b0">v3.0</span>
   </footer>
 
   <script>
-    // ─── DIAGNÓSTICO INLINE (no depende de app.js) ───────────────
+    // ─── DIAGNÓSTICO INLINE + SW KILLER ────────────────────────
     var logEl = document.getElementById('debug-log');
     function dlog(msg) {
       console.log('[DIAG]', msg);
       if (logEl) logEl.textContent += msg + '\n';
     }
-    dlog('=== DIAGNÓSTICO INLINE ===');
-    dlog('UserAgent: ' + navigator.userAgent.slice(0, 80));
-    dlog('Platform: ' + navigator.platform);
-    dlog('Vendor: ' + navigator.vendor);
+    dlog('=== v3.0 DIAGNÓSTICO ===');
+    dlog('UA: ' + navigator.userAgent.slice(0, 80));
 
-    // 1. ¿Service Worker bloqueando?
+    // MATAR Service Worker agresivamente
     if ('serviceWorker' in navigator) {
-      dlog('SW API: disponible');
+      dlog('SW API: disponible — des-registrando TODO');
       navigator.serviceWorker.getRegistrations().then(function(regs) {
-        dlog('SW registrados: ' + regs.length);
+        dlog('SW encontrados: ' + regs.length);
         regs.forEach(function(r) {
-          dlog('  SW scope: ' + r.scope + ' state: ' + (r.active ? r.active.state : 'none'));
-          // Des-registrar para limpiar
           r.unregister().then(function() {
-            dlog('  SW des-registrado: ' + r.scope);
+            dlog('  ✅ SW eliminado: ' + r.scope);
           });
         });
-      }).catch(function(e) {
-        dlog('ERROR obteniendo SW: ' + e.message);
+        // También limpiar cachés
+        if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            dlog('Caches: ' + keys.length);
+            keys.forEach(function(k) {
+              caches.delete(k).then(function() {
+                dlog('  ✅ Cache eliminado: ' + k);
+              });
+            });
+          });
+        }
       });
-    } else {
-      dlog('SW API: NO disponible');
     }
 
-    // 2. ¿IndexedDB funciona?
-    if ('indexedDB' in window) {
-      dlog('IndexedDB: disponible');
-      try {
-        var req = indexedDB.open('recordato-test', 1);
-        req.onsuccess = function() {
-          dlog('IndexedDB test: OK (abrió correctamente)');
-          req.result.close();
-          indexedDB.deleteDatabase('recordato-test');
-        };
-        req.onerror = function(e) {
-          dlog('IndexedDB test ERROR: ' + e.target.error.message);
-        };
-        req.onupgradeneeded = function(e) {
-          var db = e.target.result;
-          db.createObjectStore('test', { keyPath: 'id' });
-          dlog('IndexedDB upgrade: OK');
-        };
-      } catch(e) {
-        dlog('IndexedDB EXCEPCIÓN: ' + e.message);
-      }
-    } else {
-      dlog('IndexedDB: NO disponible');
-    }
-
-    // 3. ¿MediaRecorder?
-    if ('MediaRecorder' in window) {
-      dlog('MediaRecorder: disponible');
-      dlog('  isTypeSupported(webm): ' + MediaRecorder.isTypeSupported('audio/webm'));
-      dlog('  isTypeSupported(mp4): ' + MediaRecorder.isTypeSupported('audio/mp4'));
-    } else {
-      dlog('MediaRecorder: NO disponible');
-    }
-
-    // 4. Intentar cargar app.js manualmente
-    dlog('Intentando cargar app.js...');
-    var script = document.createElement('script');
-    script.src = 'app.js?v=' + Date.now();
-    script.onload = function() {
-      dlog('app.js CARGADO correctamente ✅');
+    // Cargar app.js con cache-buster
+    dlog('Cargando app.js...');
+    var s = document.createElement('script');
+    s.src = 'app.js?v=' + Date.now();
+    s.onload = function() {
+      dlog('✅ app.js cargado');
+      // Inspeccionar DOM después de 3 segundos
+      setTimeout(function() {
+        dlog('--- INSPECCIÓN POST-RENDER (3s) ---');
+        var cont = document.getElementById('contenedor-notas');
+        var lista = document.getElementById('lista-notas');
+        dlog('contenedor-notas:');
+        dlog('  hijos: ' + cont.children.length);
+        dlog('  innerHTML length: ' + cont.innerHTML.length);
+        dlog('  offsetHeight: ' + cont.offsetHeight + 'px');
+        dlog('  offsetWidth: ' + cont.offsetWidth + 'px');
+        dlog('  display: ' + getComputedStyle(cont).display);
+        dlog('  visibility: ' + getComputedStyle(cont).visibility);
+        dlog('  opacity: ' + getComputedStyle(cont).opacity);
+        dlog('lista-notas:');
+        dlog('  offsetHeight: ' + lista.offsetHeight + 'px');
+        dlog('  overflow: ' + getComputedStyle(lista).overflowY);
+        if (cont.children.length > 0) {
+          var first = cont.children[0];
+          dlog('Primera card:');
+          dlog('  tagName: ' + first.tagName);
+          dlog('  offsetHeight: ' + first.offsetHeight + 'px');
+          dlog('  offsetWidth: ' + first.offsetWidth + 'px');
+          dlog('  display: ' + getComputedStyle(first).display);
+          dlog('  visibility: ' + getComputedStyle(first).visibility);
+          dlog('  opacity: ' + getComputedStyle(first).opacity);
+          dlog('  background: ' + getComputedStyle(first).backgroundColor);
+          dlog('  textContent: ' + (first.textContent || '').slice(0, 40));
+          // Verificar ancestros
+          var p = first.parentElement;
+          while (p) {
+            var cs = getComputedStyle(p);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0 || cs.overflow === 'hidden' && p.offsetHeight === 0) {
+              dlog('  ⚠️ ANCESTRO PROBLEMÁTICO: ' + p.tagName + (p.id ? '#'+p.id : '') + ' display=' + cs.display + ' visibility=' + cs.visibility + ' opacity=' + cs.opacity + ' overflow=' + cs.overflow + ' height=' + p.offsetHeight);
+            }
+            p = p.parentElement;
+          }
+        }
+      }, 3000);
     };
-    script.onerror = function(e) {
-      dlog('app.js ERROR al cargar ❌');
-      // Intentar fetch directo para ver si el archivo existe
-      fetch('app.js?v=' + Date.now())
-        .then(function(r) {
-          dlog('  fetch app.js: status=' + r.status + ' size=' + r.headers.get('content-length'));
-          return r.text();
-        })
-        .then(function(txt) {
-          dlog('  fetch app.js: ' + txt.length + ' bytes recibidos');
-          dlog('  primeras líneas: ' + txt.slice(0, 100));
-        })
-        .catch(function(e2) {
-          dlog('  fetch app.js ERROR: ' + e2.message);
-        });
+    s.onerror = function() {
+      dlog('❌ ERROR al cargar app.js');
     };
-    document.head.appendChild(script);
+    document.head.appendChild(s);
   </script>
 </body>
 </html>
