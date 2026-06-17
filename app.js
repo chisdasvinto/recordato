@@ -458,7 +458,21 @@ btnPapelera.addEventListener('click', async () => {
 // ─── Service Worker ──────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
-    .then(reg => console.log('SW registrado:', reg.scope))
+    .then(reg => {
+      console.log('SW registrado:', reg.scope);
+
+      // Detectar nueva versión y forzar actualización
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Nueva versión disponible → recargar para aplicarla
+            console.log('🔄 Nueva versión detectada, recargando...');
+            location.reload();
+          }
+        });
+      });
+    })
     .catch(err => console.warn('SW falló:', err));
 }
 
