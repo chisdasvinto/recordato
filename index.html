@@ -78,11 +78,10 @@
       <span id="transcripcion-vivo" style="color:#a0a0b0;font-style:italic;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     </div>
 
-    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-size:1rem;font-weight:600" id="label-urgente">
-      <input type="checkbox" id="check-urgente" style="position:absolute;opacity:0;width:52px;height:28px;pointer-events:none">
-      <span id="toggle-slider" style="width:52px;height:28px;border-radius:14px;background:#2a2a4a;position:relative;display:inline-block;transition:background 0.2s"></span>
-      <span>⚠️ ¿Urgente?</span>
-    </label>
+    <button id="toggle-urgente" style="display:flex;align-items:center;gap:8px;background:#2a2a4a;border:none;border-radius:14px;padding:8px 16px;color:#e0e0e0;font-size:1rem;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;width:auto">
+      <span id="toggle-icono" style="font-size:1.2rem">⚠️</span>
+      <span id="toggle-texto">Urgente: NO</span>
+    </button>
 
     <div style="width:100%;display:flex;gap:8px">
       <textarea id="input-texto" placeholder="...o escribe aquí y pulsa Enter" rows="2" maxlength="500" style="flex:1;background:#16213e;border:2px solid #2a2a4a;border-radius:16px;color:#e0e0e0;padding:12px 16px;font-size:1rem;font-family:inherit;resize:none;outline:none"></textarea>
@@ -112,6 +111,47 @@
   </footer>
 
   <script>
+    // ─── TOGGLE URGENTE (primero, antes de todo) ────────────────
+    var urgenteActivo = false;
+    var toggleBtn = document.getElementById('toggle-urgente');
+    var toggleIcono = document.getElementById('toggle-icono');
+    var toggleTexto = document.getElementById('toggle-texto');
+
+    function actualizarToggleUI() {
+      if (urgenteActivo) {
+        toggleBtn.style.background = '#e74c3c';
+        toggleIcono.textContent = '🔴';
+        toggleTexto.textContent = 'Urgente: SÍ';
+      } else {
+        toggleBtn.style.background = '#2a2a4a';
+        toggleIcono.textContent = '⚠️';
+        toggleTexto.textContent = 'Urgente: NO';
+      }
+    }
+
+    toggleBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      urgenteActivo = !urgenteActivo;
+      actualizarToggleUI();
+      // Escribir directamente en el DOM para confirmar
+      var dbg = document.getElementById('debug-log');
+      if (dbg) dbg.textContent += '🔴 TOGGLE CLICK: ' + (urgenteActivo ? 'SÍ' : 'NO') + '\n';
+    });
+
+    // También touchstart para Safari
+    toggleBtn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      urgenteActivo = !urgenteActivo;
+      actualizarToggleUI();
+    }, {passive: false});
+
+    window.urgenteActivo = function() { return urgenteActivo; };
+    window.resetUrgente = function() {
+      urgenteActivo = false;
+      actualizarToggleUI();
+    };
+
     // ─── DIAGNÓSTICO INLINE + SW KILLER ────────────────────────
     var logEl = document.getElementById('debug-log');
     function dlog(msg) {
@@ -120,6 +160,7 @@
     }
     dlog('=== v3.0 DIAGNÓSTICO ===');
     dlog('UA: ' + navigator.userAgent.slice(0, 80));
+    dlog('Toggle elements: btn=' + (toggleBtn ? 'OK' : 'NULL') + ' icono=' + (toggleIcono ? 'OK' : 'NULL') + ' texto=' + (toggleTexto ? 'OK' : 'NULL'));
 
     // MATAR Service Worker agresivamente
     if ('serviceWorker' in navigator) {
@@ -148,19 +189,32 @@
     // Cargar app.js con cache-buster
     dlog('Cargando app.js...');
 
-    // Toggle urgente visual (Safari no propaga clic a input display:none)
-    var checkUrgente = document.getElementById('check-urgente');
-    var toggleSlider = document.getElementById('toggle-slider');
-    document.getElementById('label-urgente').addEventListener('click', function(e) {
-      // No interferir si el clic fue directamente en el checkbox
-      if (e.target !== checkUrgente) {
-        checkUrgente.checked = !checkUrgente.checked;
-        toggleSlider.style.background = checkUrgente.checked ? '#e74c3c' : '#2a2a4a';
+    // Toggle urgente: botón simple (Safari no falla con <button>)
+    var urgenteActivo = false;
+    var toggleBtn = document.getElementById('toggle-urgente');
+    var toggleIcono = document.getElementById('toggle-icono');
+    var toggleTexto = document.getElementById('toggle-texto');
+    toggleBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      urgenteActivo = !urgenteActivo;
+      if (urgenteActivo) {
+        toggleBtn.style.background = '#e74c3c';
+        toggleIcono.textContent = '🔴';
+        toggleTexto.textContent = 'Urgente: SÍ';
+      } else {
+        toggleBtn.style.background = '#2a2a4a';
+        toggleIcono.textContent = '⚠️';
+        toggleTexto.textContent = 'Urgente: NO';
       }
+      dlog('Toggle urgente: ' + (urgenteActivo ? 'SÍ' : 'NO'));
     });
-    checkUrgente.addEventListener('change', function() {
-      toggleSlider.style.background = checkUrgente.checked ? '#e74c3c' : '#2a2a4a';
-    });
+    window.urgenteActivo = function() { return urgenteActivo; };
+    window.resetUrgente = function() {
+      urgenteActivo = false;
+      toggleBtn.style.background = '#2a2a4a';
+      toggleIcono.textContent = '⚠️';
+      toggleTexto.textContent = 'Urgente: NO';
+    };
     var s = document.createElement('script');
     s.src = 'app.js?v=' + Date.now();
     s.onload = function() {

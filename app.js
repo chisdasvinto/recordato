@@ -136,7 +136,9 @@ function generarId() {
 const btnVoz = document.getElementById('btn-voz');
 const grabandoIndicador = document.getElementById('grabando-indicador');
 const transcripcionVivo = document.getElementById('transcripcion-vivo');
-const checkUrgente = document.getElementById('check-urgente');
+const checkUrgente = null; // toggle manejado por window.urgenteActivo() en index.html
+function urgenteChecked() { return window.urgenteActivo ? window.urgenteActivo() : false; }
+function resetUrgente() { if (window.resetUrgente) window.resetUrgente(); }
 const inputTexto = document.getElementById('input-texto');
 const btnTexto = document.getElementById('btn-texto');
 const contenedorNotas = document.getElementById('contenedor-notas');
@@ -309,9 +311,9 @@ async function guardarNotaConAudio(audioBlob) {
     audioData: audioData,
     audioType: audioBlob ? audioBlob.type : null,
     origen: 'voz',
-    urgente: checkUrgente.checked,
+    urgente: urgenteChecked(),
     creada: Date.now(),
-    recordatorio: checkUrgente.checked ? Date.now() : null,
+    recordatorio: urgenteChecked() ? Date.now() : null,
     completada: 0,
     papelera: 0
   };
@@ -319,7 +321,7 @@ async function guardarNotaConAudio(audioBlob) {
   try {
     await guardarNota(nota);
     log('✅ Nota guardada exitosamente');
-    checkUrgente.checked = false;
+    resetUrgente();
     await renderizarNotas();
     if (nota.urgente) dispararNotificacionUrgente(nota);
   } catch (err) {
@@ -348,9 +350,9 @@ async function guardarNotaTexto() {
     audioData: null,
     audioType: null,
     origen: 'texto',
-    urgente: checkUrgente.checked,
+    urgente: urgenteChecked(),
     creada: Date.now(),
-    recordatorio: checkUrgente.checked ? Date.now() : null,
+    recordatorio: urgenteChecked() ? Date.now() : null,
     completada: 0,
     papelera: 0
   };
@@ -359,7 +361,7 @@ async function guardarNotaTexto() {
     await guardarNota(nota);
     log('✅ Nota de texto guardada');
     inputTexto.value = '';
-    checkUrgente.checked = false;
+    resetUrgente();
     await renderizarNotas();
     if (nota.urgente) dispararNotificacionUrgente(nota);
   } catch (err) {
