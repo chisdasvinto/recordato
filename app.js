@@ -378,8 +378,14 @@ function programarReNotificaciones() {
 async function renderizarNotas() {
   try {
     const notas = await obtenerNotas(viendoCompletadas);
-    log('Renderizando: ' + notas.length + ' notas, contenedor visible: ' + (contenedorNotas.offsetHeight > 0));
     contenedorNotas.innerHTML = '';
+
+    // Forzar altura en la lista (Safari no resuelve bien flex:1)
+    const listaNotas = contenedorNotas.parentElement;
+    const alturaDisponible = window.innerHeight - listaNotas.getBoundingClientRect().top - 80;
+    listaNotas.style.height = Math.max(200, alturaDisponible) + 'px';
+    listaNotas.style.overflowY = 'auto';
+    listaNotas.style.display = 'block';
 
     if (notas.length === 0) {
       vacioState.classList.remove('oculto');
@@ -393,10 +399,7 @@ async function renderizarNotas() {
       notas.forEach(nota => {
         const card = crearCard(nota);
         contenedorNotas.appendChild(card);
-        log('  Card añadida: ' + nota.id + ' texto=' + nota.texto.slice(0, 20));
       });
-      log('Total cards en DOM: ' + contenedorNotas.children.length);
-      log('Altura contenedor: ' + contenedorNotas.offsetHeight + 'px');
     }
 
     actualizarBannerUrgente(notas);
