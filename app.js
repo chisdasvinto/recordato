@@ -159,22 +159,40 @@ async function iniciarGrabacion() {
   if (grabando) return;
 
   try {
+    log('Solicitando micrófono...');
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    log('Micrófono concedido ✅');
     audioChunks = [];
-    // Safari no soporta 'audio/webm;codecs=opus' — usar formato compatible
-    let mimeType = 'audio/webm;codecs=opus';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'audio/mp4';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
+
+    // Safari iOS: isTypeSupported miente. Solo audio/mp4 funciona realmente.
+    // Estrategia: mp4 primero, luego sin mimeType (default del navegador)
+    let mimeType = '';
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+    if (isSafari) {
+      // Safari solo soporta audio/mp4 para MediaRecorder
+      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      }
+      // Si no, dejamos vacío para que use el default
+    } else {
+      // Chrome/Firefox: preferir webm+opus
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
         mimeType = 'audio/webm';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = '';  // default del navegador
-        }
       }
     }
-    log('MediaRecorder mimeType: ' + (mimeType || '(default)'));
 
-    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    log('MediaRecorder mimeType: ' + (mimeType || '(default del navegador)'));
+
+    try {
+      mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    } catch (e) {
+      // Si falla con mimeType explícito, intentar sin especificar
+      log('MediaRecorder con ' + mimeType + ' falló: ' + e.message + ' — intentando default');
+      mediaRecorder = new MediaRecorder(stream);
+    }
 
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) audioChunks.push(e.data);
@@ -182,7 +200,8 @@ async function iniciarGrabacion() {
 
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
-      const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+      const blobType = mediaRecorder.mimeType || 'audio/mp4';
+      const audioBlob = new Blob(audioChunks, { type: blobType });
       log('Audio grabado: ' + (audioBlob.size / 1024).toFixed(1) + ' KB, tipo=' + audioBlob.type);
       await guardarNotaConAudio(audioBlob);
     };
@@ -191,17 +210,26 @@ async function iniciarGrabacion() {
     grabando = true;
 
     // UI
-    btnVoz.classList.add('grabando');
-    btnVoz.querySelector('.btn-voz-texto').textContent = 'GRABANDO...';
-    btnVoz.querySelector('.btn-voz-icono').textContent = '🔴';
-    grabandoIndicador.classList.remove('oculto');
+    btnVoz.style.borderColor = '#e74c3c';
+    btnVoz.style.background = '#2d1212';
+    document.getElementById('btn-voz-icono').textContent = '🔴';
+    document.getElementById('btn-voz-texto').textContent = 'GRABANDO...';
+    grabandoIndicador.style.display = 'flex';
     transcripcionVivo.textContent = '';
 
     iniciarTranscripcion();
 
   } catch (err) {
-    log('ERROR micrófono: ' + err.message);
-    alert('No se pudo acceder al micrófono. Verifica los permisos.');
+    log('ERROR micrófono: ' + err.name + ' — ' + err.message);
+    let mensaje = 'No se pudo acceder al micrófono.';
+    if (err.name === 'NotAllowedError') {
+      mensaje = 'Permiso de micrófono denegado.\n\nVe a Ajustes → Safari → Micrófono → Permitir';
+    } else if (err.name === 'NotFoundError') {
+      mensaje = 'No se encontró ningún micrófono en este dispositivo.';
+    } else if (err.name === 'NotReadableError') {
+      mensaje = 'El micrófono está siendo usado por otra app. Ciérrala e inténtalo de nuevo.';
+    }
+    alert(mensaje);
   }
 }
 
@@ -212,10 +240,12 @@ function detenerGrabacion() {
   grabando = false;
   detenerTranscripcion();
 
-  btnVoz.classList.remove('grabando');
-  btnVoz.querySelector('.btn-voz-texto').textContent = 'TOCA Y HABLA';
-  btnVoz.querySelector('.btn-voz-icono').textContent = '🎤';
-  grabandoIndicador.classList.add('oculto');
+  // UI (estilos inline — v3.0 no usa clases CSS)
+  btnVoz.style.borderColor = '#4a90d9';
+  btnVoz.style.background = '#16213e';
+  document.getElementById('btn-voz-icono').textContent = '🎤';
+  document.getElementById('btn-voz-texto').textContent = 'TOCA Y HABLA';
+  grabandoIndicador.style.display = 'none';
 }
 
 // ─── Transcripción (Web Speech API) ──────────────────────────
