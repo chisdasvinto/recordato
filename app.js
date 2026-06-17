@@ -412,29 +412,56 @@ async function renderizarNotas() {
 
 function crearCard(nota) {
   const card = document.createElement('div');
-  card.className = `nota-card ${nota.urgente ? 'urgente' : 'normal'} ${nota.completada ? 'completada' : ''}`;
   card.dataset.id = nota.id;
+
+  // ─── ESTILOS INLINE (bypass Safari CSS bugs) ──────────────────
+  const bg = nota.urgente ? '#3d1f1f' : '#3d3520';
+  const borderLeft = nota.urgente ? '4px solid #e74c3c' : '4px solid #f0c040';
+  const opacity = nota.completada ? '0.4' : '1';
+
+  card.style.cssText = `
+    background: ${bg};
+    border-left: ${borderLeft};
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    opacity: ${opacity};
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+    word-break: break-word;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  `;
 
   const icono = nota.origen === 'voz' ? '🎙️' : '✏️';
   const tiempo = tiempoRelativo(nota.creada);
 
-  card.innerHTML = `
-    <span class="nota-icono">${icono}</span>
-    <div class="nota-cuerpo">
-      <div class="nota-texto">${escapeHtml(nota.texto)}</div>
-      <div class="nota-meta">
-        <span>${tiempo}</span>
-        ${nota.urgente ? '<span>⚠️ Urgente</span>' : ''}
-        ${nota.audioData ? '<button class="nota-audio-btn" data-action="escuchar">🎧 Escuchar</button>' : ''}
-      </div>
-    </div>
-    <div class="nota-acciones">
-      ${!viendoCompletadas
-        ? `<button class="btn-hecho" data-action="hecho" title="Marcar como hecho">✓</button>`
-        : ''}
-      <button class="btn-borrar" data-action="borrar" title="${viendoCompletadas ? 'Eliminar definitivamente' : 'Mover a papelera'}">${viendoCompletadas ? '🗑️' : '✕'}</button>
-    </div>
-  `;
+  // Construir HTML con estilos inline en cada elemento
+  let html = '<span style="font-size:1.5rem;flex-shrink:0;margin-top:2px">' + icono + '</span>';
+  html += '<div style="flex:1;min-width:0">';
+  html += '<div style="font-size:1rem;line-height:1.4;word-break:break-word;';
+  if (nota.completada) html += 'text-decoration:line-through;';
+  html += '">' + escapeHtml(nota.texto) + '</div>';
+  html += '<div style="font-size:0.7rem;color:#a0a0b0;margin-top:4px;display:flex;gap:8px;align-items:center">';
+  html += '<span>' + tiempo + '</span>';
+  if (nota.urgente) html += '<span>⚠️ Urgente</span>';
+  if (nota.audioData) html += '<button data-action="escuchar" style="background:none;border:1px solid #a0a0b0;color:#a0a0b0;border-radius:10px;padding:2px 8px;font-size:0.7rem;cursor:pointer">🎧 Escuchar</button>';
+  html += '</div></div>';
+
+  html += '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">';
+  if (!viendoCompletadas) {
+    html += '<button data-action="hecho" style="background:none;border:none;font-size:1.3rem;cursor:pointer;padding:4px;border-radius:8px;color:#4caf50;line-height:1" title="Marcar como hecho">✓</button>';
+  }
+  html += '<button data-action="borrar" style="background:none;border:none;font-size:1.3rem;cursor:pointer;padding:4px;border-radius:8px;color:#a0a0b0;line-height:1" title="' + (viendoCompletadas ? 'Eliminar definitivamente' : 'Mover a papelera') + '">' + (viendoCompletadas ? '🗑️' : '✕') + '</button>';
+  html += '</div>';
+
+  card.innerHTML = html;
 
   card.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
