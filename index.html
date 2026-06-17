@@ -78,9 +78,9 @@
       <span id="transcripcion-vivo" style="color:#a0a0b0;font-style:italic;font-weight:400;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     </div>
 
-    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-size:1rem;font-weight:600">
-      <input type="checkbox" id="check-urgente" style="display:none">
-      <span id="toggle-slider" style="width:52px;height:28px;border-radius:14px;background:#2a2a4a;position:relative;display:inline-block"></span>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-size:1rem;font-weight:600" id="label-urgente">
+      <input type="checkbox" id="check-urgente" style="position:absolute;opacity:0;width:52px;height:28px;pointer-events:none">
+      <span id="toggle-slider" style="width:52px;height:28px;border-radius:14px;background:#2a2a4a;position:relative;display:inline-block;transition:background 0.2s"></span>
       <span>⚠️ ¿Urgente?</span>
     </label>
 
@@ -147,6 +147,20 @@
 
     // Cargar app.js con cache-buster
     dlog('Cargando app.js...');
+
+    // Toggle urgente visual (Safari no propaga clic a input display:none)
+    var checkUrgente = document.getElementById('check-urgente');
+    var toggleSlider = document.getElementById('toggle-slider');
+    document.getElementById('label-urgente').addEventListener('click', function(e) {
+      // No interferir si el clic fue directamente en el checkbox
+      if (e.target !== checkUrgente) {
+        checkUrgente.checked = !checkUrgente.checked;
+        toggleSlider.style.background = checkUrgente.checked ? '#e74c3c' : '#2a2a4a';
+      }
+    });
+    checkUrgente.addEventListener('change', function() {
+      toggleSlider.style.background = checkUrgente.checked ? '#e74c3c' : '#2a2a4a';
+    });
     var s = document.createElement('script');
     s.src = 'app.js?v=' + Date.now();
     s.onload = function() {
