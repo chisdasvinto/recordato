@@ -25,22 +25,3 @@ body {
 }
 
 .oculto { display: none !important; }
-
-/* Panel de diagnóstico — oculto por defecto */
-#debug-panel {
-  margin-top: 8px;
-  border-top: 1px solid #2a2a4a;
-  padding: 8px 0;
-  font-size: 0.7rem;
-  color: #a0a0b0;
-}
-#debug-panel[open] #debug-log {
-  max-height: 200px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  font-size: 0.65rem;
-  background: #0d1117;
-  padding: 8px;
-  border-radius: 8px;
-  margin-top: 4px;
-}

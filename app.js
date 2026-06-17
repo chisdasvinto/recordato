@@ -13,11 +13,6 @@ const URGENTE_INTERVALO_MS = 30 * 60 * 1000;
 // ─── Log de diagnóstico (visible en el DOM) ───────────────────
 function log(msg) {
   console.log('[Recordato]', msg);
-  const el = document.getElementById('debug-log');
-  if (el) {
-    el.textContent += msg + '\n';
-    el.scrollTop = el.scrollHeight;
-  }
 }
 
 // ─── IndexedDB ────────────────────────────────────────────────
