@@ -211,10 +211,15 @@ async function guardarNotaConAudio(audioBlob) {
     && textoTranscrito !== '(transcripción no disponible)')
     ? textoTranscrito : '';
 
+  // Convertir Blob a ArrayBuffer para compatibilidad con Safari/WebKit
+  // (Safari tiene bugs al guardar Blobs directamente en IndexedDB)
+  const audioData = audioBlob ? await blobToArrayBuffer(audioBlob) : null;
+
   const nota = {
     id: generarId(),
     texto: textoValido || '(nota de voz — toca 🎧 para escuchar)',
-    audioBlob: audioBlob,
+    audioData: audioData,  // ArrayBuffer en vez de Blob
+    audioType: audioBlob ? audioBlob.type : null,
     origen: 'voz',
     urgente: checkUrgente.checked,
     creada: Date.now(),
@@ -232,6 +237,15 @@ async function guardarNotaConAudio(audioBlob) {
   }
 }
 
+function blobToArrayBuffer(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 // ─── Guardar nota de texto ───────────────────────────────────
 async function guardarNotaTexto() {
   const texto = inputTexto.value.trim();
@@ -240,7 +254,7 @@ async function guardarNotaTexto() {
   const nota = {
     id: generarId(),
     texto: texto,
-    audioBlob: null,
+    audioData: null,
     origen: 'texto',
     urgente: checkUrgente.checked,
     creada: Date.now(),
@@ -340,7 +354,7 @@ function crearCard(nota) {
       <div class="nota-meta">
         <span>${tiempo}</span>
         ${nota.urgente ? '<span>⚠️ Urgente</span>' : ''}
-        ${nota.audioBlob ? '<button class="nota-audio-btn" data-action="escuchar">🎧 Escuchar</button>' : ''}
+        ${nota.audioData ? '<button class="nota-audio-btn" data-action="escuchar">🎧 Escuchar</button>' : ''}
       </div>
     </div>
     <div class="nota-acciones">
@@ -358,7 +372,7 @@ function crearCard(nota) {
       const action = btn.dataset.action;
       if (action === 'hecho') marcarHecho(nota.id, card);
       if (action === 'borrar') borrarNota(nota.id, card);
-      if (action === 'escuchar') reproducirAudio(nota.audioBlob);
+      if (action === 'escuchar') reproducirAudio(nota.audioData, nota.audioType);
     });
   });
 
@@ -398,9 +412,11 @@ async function borrarNota(id, card) {
   await renderizarNotas();
 }
 
-function reproducirAudio(audioBlob) {
-  if (!audioBlob) return;
-  const url = URL.createObjectURL(audioBlob);
+function reproducirAudio(audioData, audioType) {
+  if (!audioData) return;
+  // Reconstruir Blob desde ArrayBuffer (compatible con Safari)
+  const blob = new Blob([audioData], { type: audioType || 'audio/webm;codecs=opus' });
+  const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   audio.play().catch(e => console.warn('Error al reproducir audio:', e));
   audio.onended = () => URL.revokeObjectURL(url);
