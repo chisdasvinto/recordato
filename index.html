@@ -2,12 +2,16 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#1a1a2e">
   <meta name="description" content="Recordato — Para que no se te olvide nada. Anota con voz o texto.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Recordato">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-startup-image" href="icons/icon-512.png">
   <title>Recordato</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -28,9 +32,11 @@
   <main class="captura">
     <!-- Botón de voz gigante -->
     <button id="btn-voz" class="btn-voz" aria-label="Toca y habla">
-      <span class="btn-voz-icono">🎤</span>
-      <span class="btn-voz-texto">TOCA Y HABLA</span>
-      <span class="btn-voz-hint">(toca para grabar, toca para parar)</span>
+      <div class="btn-voz-inner">
+        <span class="btn-voz-icono">🎤</span>
+        <span class="btn-voz-texto">TOCA Y HABLA</span>
+        <span class="btn-voz-hint">(toca para grabar, toca para parar)</span>
+      </div>
     </button>
 
     <!-- Indicador de grabación -->

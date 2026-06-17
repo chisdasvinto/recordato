@@ -34,7 +34,8 @@ body {
   flex-direction: column;
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100dvh;
+  min-height: 100vh; /* más compatible que 100dvh en Safari */
+  min-height: 100dvh; /* fallback para navegadores modernos */
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom) 16px;
 }
 
@@ -90,22 +91,30 @@ body {
 .btn-voz {
   width: 100%;
   max-width: 320px;
-  aspect-ratio: 1 / 1;
+  /* aspect-ratio: 1/1 no funciona en Safari < 15 — usamos padding-bottom */
+  height: 0;
+  padding-bottom: min(100%, 320px); /* cuadrado perfecto */
+  position: relative;
   border-radius: 50%;
   border: 4px solid var(--acento);
   background: var(--bg-card);
   color: var(--texto);
   cursor: pointer;
+  box-shadow: var(--sombra);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+.btn-voz-inner {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.2s;
-  box-shadow: var(--sombra);
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  touch-action: manipulation;
 }
 .btn-voz:active,
 .btn-voz.grabando {
@@ -273,6 +282,8 @@ body {
 }
 .nota-card.completada {
   opacity: 0.4;
+}
+.nota-card.completada .nota-texto {
   text-decoration: line-through;
 }
 .nota-card.eliminando {

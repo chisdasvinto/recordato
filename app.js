@@ -479,20 +479,29 @@ if ('serviceWorker' in navigator) {
 // ─── Instalar PWA ────────────────────────────────────────────
 let deferredPrompt = null;
 const btnInstalar = document.getElementById('btn-instalar');
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 window.addEventListener('beforeinstallprompt', (e) => {
+  // Solo en Android/Chrome — iOS no dispara este evento
   e.preventDefault();
   deferredPrompt = e;
+  btnInstalar.textContent = '📲 Instalar app';
   btnInstalar.classList.remove('oculto');
 });
 
 btnInstalar.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  console.log('Instalación:', outcome);
-  deferredPrompt = null;
-  btnInstalar.classList.add('oculto');
+  if (deferredPrompt) {
+    // Android/Chrome: diálogo nativo
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('Instalación:', outcome);
+    deferredPrompt = null;
+    btnInstalar.classList.add('oculto');
+  } else if (isIOS) {
+    // iOS: mostrar instrucciones
+    alert('📲 Para instalar Recordato en tu iPhone:\n\n1. Toca el botón Compartir (📤)\n2. Desliza y toca "Añadir a pantalla de inicio"\n3. Toca "Añadir"\n\n¡Usa Safari, no Chrome!');
+  }
 });
 
 // Si ya está instalada, ocultar botón
@@ -500,6 +509,12 @@ window.addEventListener('appinstalled', () => {
   btnInstalar.classList.add('oculto');
   deferredPrompt = null;
 });
+
+// En iOS, mostrar el botón siempre (con instrucciones)
+if (isIOS && !deferredPrompt) {
+  btnInstalar.textContent = '📲 Instalar (iOS)';
+  btnInstalar.classList.remove('oculto');
+}
 
 // ─── Inicio ──────────────────────────────────────────────────
 async function iniciar() {
