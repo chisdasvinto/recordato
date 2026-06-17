@@ -384,6 +384,20 @@ body {
   border-radius: 8px;
 }
 .btn-papelera:active { background: var(--borde); }
+
+.btn-instalar {
+  background: var(--acento);
+  color: #fff;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: opacity 0.2s;
+}
+.btn-instalar.oculto { display: none; }
+.btn-instalar:active { opacity: 0.8; }
 .version {
   font-size: 0.7rem;
   color: var(--texto-suave);

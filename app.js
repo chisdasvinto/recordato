@@ -428,29 +428,13 @@ function escapeHtml(texto) {
 }
 
 // ─── Eventos ─────────────────────────────────────────────────
-// Botón de voz: soporta tanto "toca para iniciar/detener" como "mantén pulsado"
-btnVoz.addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  if (!grabando) iniciarGrabacion();
-});
-
-btnVoz.addEventListener('pointerup', (e) => {
-  e.preventDefault();
-  if (grabando) detenerGrabacion();
-});
-
-btnVoz.addEventListener('pointerleave', (e) => {
-  // Si el dedo se sale del botón mientras graba, seguir grabando
-  // (más tolerante para gente mayor o con poca precisión táctil)
-});
-
-// También permitir toque simple (toggle) para accesibilidad
+// Botón de voz: toggle simple — toca para grabar, toca para parar
 btnVoz.addEventListener('click', (e) => {
-  // Si fue un pointerdown+pointerup rápido, ya se manejó
-  // Este es fallback para clics de ratón o teclado
-  if (e.pointerType === 'mouse' || e.pointerType === '') {
-    if (grabando) detenerGrabacion();
-    else iniciarGrabacion();
+  e.preventDefault();
+  if (grabando) {
+    detenerGrabacion();
+  } else {
+    iniciarGrabacion();
   }
 });
 
@@ -477,6 +461,31 @@ if ('serviceWorker' in navigator) {
     .then(reg => console.log('SW registrado:', reg.scope))
     .catch(err => console.warn('SW falló:', err));
 }
+
+// ─── Instalar PWA ────────────────────────────────────────────
+let deferredPrompt = null;
+const btnInstalar = document.getElementById('btn-instalar');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  btnInstalar.classList.remove('oculto');
+});
+
+btnInstalar.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  console.log('Instalación:', outcome);
+  deferredPrompt = null;
+  btnInstalar.classList.add('oculto');
+});
+
+// Si ya está instalada, ocultar botón
+window.addEventListener('appinstalled', () => {
+  btnInstalar.classList.add('oculto');
+  deferredPrompt = null;
+});
 
 // ─── Inicio ──────────────────────────────────────────────────
 async function iniciar() {
