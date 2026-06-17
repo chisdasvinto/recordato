@@ -321,12 +321,17 @@ async function guardarNotaConAudio(audioBlob) {
   try {
     await guardarNota(nota);
     log('✅ Nota guardada exitosamente');
-    resetUrgente();
     await renderizarNotas();
-    if (nota.urgente) dispararNotificacionUrgente(nota);
   } catch (err) {
     log('❌ ERROR al guardar nota: ' + err.message);
     alert('Error al guardar la nota. Intenta de nuevo.');
+    return;
+  }
+
+  // Fuera del try/catch: reset + notificación (no deben bloquear el guardado)
+  try { resetUrgente(); } catch(e) { log('resetUrgente falló: ' + e.message); }
+  if (nota.urgente) {
+    try { dispararNotificacionUrgente(nota); } catch(e) { log('notificación falló: ' + e.message); }
   }
 }
 
@@ -361,12 +366,16 @@ async function guardarNotaTexto() {
     await guardarNota(nota);
     log('✅ Nota de texto guardada');
     inputTexto.value = '';
-    resetUrgente();
     await renderizarNotas();
-    if (nota.urgente) dispararNotificacionUrgente(nota);
   } catch (err) {
     log('❌ ERROR al guardar texto: ' + err.message);
     alert('Error al guardar. Intenta de nuevo.');
+    return;
+  }
+
+  try { resetUrgente(); } catch(e) { log('resetUrgente falló: ' + e.message); }
+  if (nota.urgente) {
+    try { dispararNotificacionUrgente(nota); } catch(e) { log('notificación falló: ' + e.message); }
   }
 }
 
